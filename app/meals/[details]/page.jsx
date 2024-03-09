@@ -3,6 +3,7 @@ import classes from "./page.module.css";
 import { getMeal } from "@/lib/meals";
 const MealDetailsPage = ({ params }) => {
   const meal = getMeal(params.details);
+  meal.instructions = meal.instructions.replace(/\n/g, "<br/>");
   return (
     <>
       <header className={classes.header}>
