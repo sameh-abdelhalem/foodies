@@ -2,6 +2,7 @@ import Image from "next/image";
 import classes from "./page.module.css";
 import { getMeal } from "@/lib/meals";
 import { notFound } from "next/navigation";
+export const dynamic = "force-static";
 export async function generateMetadata({ params }) {
   const meal = getMeal(params.details);
   return {
