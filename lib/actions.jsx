@@ -30,7 +30,7 @@ export const shareMeal = async (prevState, formData) => {
       message: "Invalid input.",
     };
   }
-
+  console.log(meal);
   await saveMeal(meal);
   revalidatePath("/meals");
   redirect("/meals");

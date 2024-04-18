@@ -1,48 +1,67 @@
-import sql from "better-sqlite3";
 import slugify from "slugify";
 import xss from "xss";
-import fs from "node:fs";
 import { S3 } from "@aws-sdk/client-s3";
+
 const s3 = new S3({
-  region: "us-east-1",
+  region: "eu-west-3",
 });
-const db = sql("meals.db");
+import { db } from "@vercel/postgres";
 
 export async function getMeals() {
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  return db.prepare("SELECT * FROM meals").all();
+  try {
+    const data = await db.query("SELECT * FROM meals");
+    return data.rows;
+  } catch (error) {
+    console.error("Database Error:", error);
+    throw new Error("Failed to fetch the meals.");
+  }
 }
-export function getMeal(slug) {
-  return db.prepare("SELECT * FROM meals WHERE slug = ?").get(slug);
+
+export async function getMeal(slug) {
+  try {
+    const data = await db.query("SELECT * FROM meals WHERE slug = $1", [slug]);
+    return data.rows[0];
+  } catch (error) {
+    console.error("Database Error:", error);
+    throw new Error("Failed to fetch the meal.");
+  }
 }
 
 export async function saveMeal(meal) {
-  meal.slug = slugify(meal.title, { lower: true });
-  meal.instructions = xss(meal.instructions);
-  const extension = meal.image.name.split(".").pop();
-  const fileName = `${meal.slug}.${extension}`;
+  try {
+    meal.slug = slugify(meal.title, { lower: true });
+    meal.instructions = xss(meal.instructions);
+    const extension = meal.image.name.split(".").pop();
+    const fileName = `${meal.slug}.${extension}`;
 
-  const bufferedImage = await meal.image.arrayBuffer();
-  s3.putObject({
-    Bucket: "samehmohamed-nextjs-demo-users-image",
-    Key: fileName,
-    Body: Buffer.from(bufferedImage),
-    ContentType: meal.image.type,
-  });
-  meal.image = fileName;
-  db.prepare(
-    `
-    INSERT INTO meals
-    (title, summary, instructions, creator, creator_email, image, slug)
-    VALUES (
-        @title,
-        @summary,
-        @instructions,
-        @creator,
-        @creator_email,
-        @image,
-        @slug
-    )
-    `
-  ).run(meal);
+    const bufferedImage = await meal.image.arrayBuffer();
+    s3.putObject({
+      Bucket: "samehmohamed-nextjs-demo-users-image",
+      Key: fileName,
+      Body: Buffer.from(bufferedImage),
+      ContentType: meal.image.type,
+    });
+
+    meal.image = fileName;
+
+    await db.query(
+      `
+      INSERT INTO meals
+      (title, summary, instructions, creator, creator_email, image, slug)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `,
+      [
+        meal.title,
+        meal.summary,
+        meal.instructions,
+        meal.creator,
+        meal.creator_email,
+        meal.image,
+        meal.slug,
+      ]
+    );
+  } catch (error) {
+    console.error("Database Error:", error);
+    throw new Error("Failed to save the meal.");
+  }
 }
