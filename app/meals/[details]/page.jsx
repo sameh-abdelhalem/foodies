@@ -49,3 +49,5 @@ const MealDetailsPage = async ({ params }) => {
 };
 
 export default MealDetailsPage;
+
+// comment
